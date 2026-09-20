@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Petualangan CT: Misi Mencuci Baju</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+   
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap');
+
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f172a, #1e3a8a, #06b6d4);
+            background-size: 200% 200%;
+            animation: gradientBG 15s ease infinite;
+            touch-action: none; /* Penting untuk custom drag & drop di mobile */
+        }
+
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+
+        /* 3D Scene Setup */
+        .scene {
+            perspective: 1200px;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 10;
+        }
+
+
+        .card-container {
+            width: 95%;
+            max-width: 800px;
+            position: absolute;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 1.5rem;
+        }
+
+
+        /* Hide scrollbar for a cleaner look */
+        .card-container::-webkit-scrollbar { display: none; }
+        .card-container { -ms-overflow-style: none; scrollbar-width: none; }
+
+
+        .card-enter {
+            animation: slideIn3D 0.7s forwards cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .card-exit {
+            animation: slideOut3D 0.5s forwards ease-in;
+        }
+
+
+        @keyframes slideIn3D {
+            0% { opacity: 0; transform: translateZ(-500px) rotateY(-45deg) rotateX(10deg) scale(0.8); }
+            100% { opacity: 1; transform: translateZ(0) rotateY(0deg) rotateX(0deg) scale(1); }
+        }
+        @keyframes slideOut3D {
+            0% { opacity: 1; transform: translateZ(0) rotateY(0) rotateX(0) scale(1); }
+            100% { opacity: 0; transform: translateZ(300px) rotateY(45deg) rotateX(-10deg) scale(1.2); }
+        }
+
+
+        /* Efek Tombol & Interaksi */
+        .btn-3d {
+            transform-style: preserve-3d;
+            transition: all 0.15s ease;
+            box-shadow: 0 6px 0px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .btn-3d:active {
+            transform: translateY(6px);
+            box-shadow: 0 0px 0px rgba(0,0,0,0.3);
+        }
+
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(16px);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(255,255,255,0.5);
+        }
+
+
+        /* Elemen Game Khusus */
+        .chip {
+            transition: all 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+        .chip.selected {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+            border-color: #2563eb;
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.5);
+        }
+
+
+        .draggable-item {
+            touch-action: none;
+            cursor: grab;
+            transition: transform 0.1s; /* smooth drag */
+            z-index: 20;
+        }
+        .draggable-item:active { cursor: grabbing; }
+
+
+        .basket {
+            transition: all 0.3s;
+        }
+        .basket.hovered {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+
+
+        /* Slots for Algorithm */
+        .algo-slot {
+            min-height: 50px;
+            border: 2px dashed #cbd5e1;
+            transition: all 0.2s;
+        }
+        .algo-item {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .algo-item:hover { transform: scale(1.02); }
+
+
+        /* Partikel Background */
+        .bubble {
+            position: absolute;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            animation: floatUp infinite ease-in;
+            z-index: 1;
+            pointer-events: none;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0.5); opacity: 1; }
+            100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+        }
+
+
+        .shake {
+            animation: shakeAnim 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shakeAnim {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+
+    <div id="bubble-container" class="absolute inset-0 overflow-hidden pointer-events-none"></div>
+
+
+    <!-- UI Header -->
+    <div id="header-ui" class="absolute top-4 left-0 right-0 flex justify-center px-4 z-50 hidden transition-opacity">
+        <div class="glass-panel px-6 py-2 rounded-full font-extrabold text-blue-900 shadow-xl flex items-center gap-3">
+            <span id="stage-indicator" class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm">Tahap 1</span>
+            <span id="stage-title" class="tracking-wide">Dekomposisi</span>
+        </div>
+    </div>
+
+
+    <div class="scene">
+       
+        <!-- ================= START SCREEN ================= -->
+        <div id="screen-start" class="card-container glass-panel p-8 md:p-12 rounded-3xl text-center">
+            <div class="mb-6 animate-bounce flex justify-center">
+                <!-- SVG Mesin Cuci -->
+                <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-2xl">
+                    <rect x="5" y="3" width="14" height="18" rx="2" ry="2"></rect>
+                    <line x1="5" y1="8" x2="19" y2="8"></line>
+                    <circle cx="12" cy="15" r="4.5"></circle>
+                    <path d="M12 15c-1.5 0-2.5-1-2.5-2.5"></path>
+                    <circle cx="8.5" cy="5.5" r="1" fill="#2563eb"></circle>
+                    <circle cx="11.5" cy="5.5" r="1" fill="#2563eb"></circle>
+                </svg>
+            </div>
+            <h1 class="text-3xl md:text-5xl font-black text-blue-900 mb-2 leading-tight">Misi <span class="text-blue-600">Mencuci Baju</span></h1>
+            <p class="text-lg text-blue-800 font-bold mb-6">Petualangan Berpikir Komputasional</p>
+            <p class="text-gray-600 mb-8 font-medium max-w-lg mx-auto">
+                Bantu Budi mencuci bajunya dengan menerapkan 4 pilar CT: Dekomposisi, Pengenalan Pola, Abstraksi, dan Algoritma!
+            </p>
+            <button onclick="startGame()" class="btn-3d bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white font-black py-4 px-12 rounded-2xl text-xl mx-auto inline-block border-b-4 border-blue-700">
+                MULAI MISI
+            </button>
+        </div>
+
+
+        <!-- ================= STAGE 1: DEKOMPOSISI ================= -->
+        <div id="screen-stage1" class="card-container glass-panel p-6 md:p-10 hidden">
+            <div class="text-center mb-6">
+                <div class="inline-block bg-yellow-400 text-yellow-900 font-bold px-4 py-1 rounded-full text-sm mb-2 shadow-sm border border-yellow-200">Tahap 1: Dekomposisi</div>
+                <h2 class="text-2xl font-extrabold text-gray-800">Uraikan Masalahnya!</h2>
+                <p class="text-gray-600 mt-2 font-medium">Tugas "Mencuci Baju" itu besar. Mari pecah menjadi tugas-tugas kecil. Pilih <span class="font-bold text-blue-600">4 aktivitas</span> yang benar-benar bagian dari proses mencuci baju.</p>
+                <button onclick="speakText('Tahap 1, Dekomposisi. Uraikan Masalahnya! Tugas mencuci baju itu besar. Mari pecah menjadi tugas-tugas kecil. Pilih 4 aktivitas yang benar-benar bagian dari proses mencuci baju.')" class="mt-3 bg-yellow-100 text-yellow-800 hover:bg-yellow-200 px-4 py-2 rounded-full font-bold text-sm inline-flex items-center gap-2 transition-colors border border-yellow-300">
+                    🔊 Dengarkan Instruksi
+                </button>
+            </div>
+           
+            <div id="decomp-container" class="flex flex-wrap justify-center gap-3 md:gap-4 mb-8">
+                <!-- Chips di-render via JS -->
+            </div>
+
+
+            <button id="btn-check-1" onclick="checkDecomp()" class="btn-3d bg-green-500 text-white font-bold py-3 px-8 rounded-xl mx-auto block w-full md:w-auto opacity-50 cursor-not-allowed border-b-4 border-green-700">
+                Cek Jawaban
+            </button>
+        </div>
+
+
+        <!-- ================= STAGE 2: PENGENALAN POLA ================= -->
+        <div id="screen-stage2" class="card-container glass-panel p-6 md:p-10 hidden text-center">
+            <div class="inline-block bg-pink-400 text-pink-900 font-bold px-4 py-1 rounded-full text-sm mb-2 shadow-sm border border-pink-200">Tahap 2: Pengenalan Pola</div>
+            <h2 class="text-2xl font-extrabold text-gray-800">Pisahkan Berdasarkan Warna!</h2>
+            <p class="text-gray-600 mt-2 font-medium">Kenali polanya: Baju putih bisa rusak jika luntur. Tarik (Drag) pakaian ke keranjang yang tepat!</p>
+            <button onclick="speakText('Tahap 2, Pengenalan Pola. Pisahkan Berdasarkan Warna! Kenali polanya: Baju putih bisa rusak jika luntur. Tarik pakaian ke keranjang yang tepat sesuai warnanya.')" class="mt-3 mb-6 bg-pink-100 text-pink-800 hover:bg-pink-200 px-4 py-2 rounded-full font-bold text-sm inline-flex items-center gap-2 transition-colors border border-pink-300">
+                🔊 Dengarkan Instruksi
+            </button>
+           
+            <!-- Area Baju -->
+            <div class="relative w-full h-40 md:h-48 bg-blue-50/50 rounded-2xl border-2 border-blue-100 flex items-center justify-center gap-2 md:gap-6 mb-8 overflow-visible" id="clothes-area">
+                <!-- Baju di-render via JS -->
+            </div>
+
+
+            <!-- Area Keranjang -->
+            <div class="flex justify-center gap-8 md:gap-16">
+                <div id="basket-white" class="drop-basket basket flex flex-col items-center">
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="#f8fafc" stroke="#94a3b8" stroke-width="2" class="drop-shadow-lg"><path d="M4 7h16l-2 14H6L4 7z"/><path d="M8 7V5a2 2 0 0 1 4 0v2"/><path d="M12 7V5a2 2 0 0 1 4 0v2"/></svg>
+                    <span class="mt-2 font-bold text-gray-500 bg-white px-3 py-1 rounded-full text-sm border shadow-sm">Baju Putih <span id="count-white">(0)</span></span>
+                </div>
+                <div id="basket-color" class="drop-basket basket flex flex-col items-center">
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="#f472b6" stroke="#db2777" stroke-width="2" class="drop-shadow-lg"><path d="M4 7h16l-2 14H6L4 7z"/><path d="M8 7V5a2 2 0 0 1 4 0v2"/><path d="M12 7V5a2 2 0 0 1 4 0v2"/></svg>
+                    <span class="mt-2 font-bold text-pink-600 bg-pink-50 px-3 py-1 rounded-full text-sm border border-pink-200 shadow-sm">Baju Warna <span id="count-color">(0)</span></span>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ================= STAGE 3: ABSTRAKSI ================= -->
+        <div id="screen-stage3" class="card-container glass-panel p-6 md:p-10 hidden">
+            <div class="text-center mb-6">
+                <div class="inline-block bg-purple-400 text-purple-900 font-bold px-4 py-1 rounded-full text-sm mb-2 shadow-sm border border-purple-200">Tahap 3: Abstraksi</div>
+                <h2 class="text-2xl font-extrabold text-gray-800">Fokus pada yang Penting!</h2>
+                <p class="text-gray-600 mt-2 font-medium">Buang informasi yang tidak relevan dengan tujuan kita (membuat baju bersih). Kategorikan hal-hal berikut!</p>
+                <button onclick="speakText('Tahap 3, Abstraksi. Fokus pada yang Penting! Buang informasi yang tidak relevan dengan tujuan kita, yaitu membuat baju bersih. Kategorikan hal-hal berikut menjadi penting atau abaikan.')" class="mt-3 bg-purple-100 text-purple-800 hover:bg-purple-200 px-4 py-2 rounded-full font-bold text-sm inline-flex items-center gap-2 transition-colors border border-purple-300">
+                    🔊 Dengarkan Instruksi
+                </button>
+            </div>
+           
+            <div id="abstract-container" class="space-y-3 mb-8">
+                <!-- Baris Abstraksi di-render via JS -->
+            </div>
+
+
+            <button onclick="checkAbstraction()" class="btn-3d bg-purple-500 text-white font-bold py-3 px-8 rounded-xl mx-auto block w-full md:w-auto border-b-4 border-purple-700">
+                Verifikasi Data
+            </button>
+        </div>
+
+
+        <!-- ================= STAGE 4: ALGORITMA ================= -->
+        <div id="screen-stage4" class="card-container glass-panel p-6 md:p-10 hidden">
+            <div class="text-center mb-6">
+                <div class="inline-block bg-emerald-400 text-emerald-900 font-bold px-4 py-1 rounded-full text-sm mb-2 shadow-sm border border-emerald-200">Tahap 4: Algoritma</div>
+                <h2 class="text-2xl font-extrabold text-gray-800">Susun Langkahnya!</h2>
+                <p class="text-gray-600 mt-2 font-medium">Klik langkah-langkah di bawah ini untuk menyusunnya menjadi urutan yang logis dari awal hingga akhir.</p>
+                <button onclick="speakText('Tahap 4, Algoritma. Susun Langkahnya! Klik langkah-langkah di bawah ini untuk menyusunnya menjadi urutan yang logis, dari awal hingga baju selesai dicuci.')" class="mt-3 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 px-4 py-2 rounded-full font-bold text-sm inline-flex items-center gap-2 transition-colors border border-emerald-300">
+                    🔊 Dengarkan Instruksi
+                </button>
+            </div>
+           
+            <div class="flex flex-col md:flex-row gap-6 mb-6">
+                <!-- Sumber (Acak) -->
+                <div class="flex-1 bg-gray-50 rounded-2xl p-4 border border-gray-200 shadow-inner">
+                    <h3 class="font-bold text-gray-500 mb-3 text-center text-sm">Pilihan Langkah:</h3>
+                    <div id="algo-pool" class="flex flex-col gap-2 min-h-[150px]">
+                        <!-- Item Pool JS -->
+                    </div>
+                </div>
+               
+                <!-- Target (Urutan) -->
+                <div class="flex-1 bg-emerald-50 rounded-2xl p-4 border border-emerald-200 shadow-inner">
+                    <h3 class="font-bold text-emerald-700 mb-3 text-center text-sm">Urutan Algoritma:</h3>
+                    <div id="algo-sequence" class="flex flex-col gap-2 min-h-[150px]">
+                        <!-- Urutan JS -->
+                    </div>
+                </div>
+            </div>
+
+
+            <button onclick="checkAlgorithm()" class="btn-3d bg-emerald-500 text-white font-bold py-3 px-8 rounded-xl mx-auto block w-full md:w-auto border-b-4 border-emerald-700">
+                Jalankan Mesin
+            </button>
+        </div>
+
+
+        <!-- ================= STAGE 5: KUIS ================= -->
+        <div id="screen-stage5" class="card-container glass-panel p-6 md:p-10 hidden text-center">
+            <div class="mb-6 flex flex-col items-center">
+                <div class="inline-block bg-orange-400 text-orange-900 font-bold px-4 py-1 rounded-full text-sm mb-2 shadow-sm border border-orange-200">Evaluasi Akhir</div>
+                <h2 id="quiz-question" class="text-xl md:text-2xl font-extrabold text-gray-800 mt-4 leading-relaxed">
+                    Pertanyaan disini...
+                </h2>
+                <button id="btn-speak-quiz" class="mt-4 bg-orange-100 text-orange-800 hover:bg-orange-200 px-4 py-2 rounded-full font-bold text-sm inline-flex items-center gap-2 transition-colors border border-orange-300">
+                    🔊 Bacakan Soal & Pilihan
+                </button>
+            </div>
+           
+            <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <!-- Opsi JS -->
+            </div>
+           
+            <div class="mt-8 font-bold text-gray-500">
+                Soal <span id="quiz-counter">1/4</span>
+            </div>
+        </div>
+
+
+        <!-- ================= RESULT SCREEN ================= -->
+        <div id="screen-result" class="card-container glass-panel p-8 md:p-12 hidden text-center">
+            <div class="text-6xl mb-4">🏆</div>
+            <h1 class="text-4xl font-black text-blue-900 mb-2">Misi Selesai!</h1>
+            <p class="text-xl font-bold text-green-600 mb-6">Kamu telah menguasai Berpikir Komputasional!</p>
+           
+            <div class="text-left bg-blue-50 p-5 rounded-2xl border border-blue-100 text-sm md:text-base leading-relaxed text-gray-700 shadow-inner mb-8">
+                <p class="font-bold mb-2 text-blue-900 border-b border-blue-200 pb-2">Ringkasan Materi:</p>
+                <ul class="space-y-2">
+                    <li><span class="font-bold text-yellow-600">Dekomposisi:</span> Memecah tugas besar jadi langkah kecil (pilah, cuci, jemur, lipat).</li>
+                    <li><span class="font-bold text-pink-600">Pengenalan Pola:</span> Menyadari pola luntur, sehingga baju dipisah berdasar warna.</li>
+                    <li><span class="font-bold text-purple-600">Abstraksi:</span> Fokus pada takaran sabun, abaikan merek atau warna mesin cuci.</li>
+                    <li><span class="font-bold text-emerald-600">Algoritma:</span> Menyusun langkah pencucian secara berurutan agar hasilnya bersih.</li>
+                </ul>
+            </div>
+           
+            <button onclick="location.reload()" class="btn-3d bg-blue-600 text-white font-bold py-3 px-10 rounded-xl border-b-4 border-blue-800 mx-auto">
+                Main Lagi
+            </button>
+        </div>
+
+
+    </div>
+
+
+    <script>
+        // --- SISTEM TEXT-TO-SPEECH (Suara) ---
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                // Hentikan suara yang sedang berjalan sebelumnya
+                window.speechSynthesis.cancel();
+               
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID'; // Bahasa Indonesia
+                utterance.rate = 0.9;     // Kecepatan sedikit diperlambat agar jelas
+                utterance.pitch = 1;      // Nada normal
+               
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert("Maaf, browser kamu tidak mendukung fitur Text-to-Speech.");
+            }
+        }
+
+
+        function stopSpeak() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+
+        // --- SISTEM AUDIO (Sintetis murni) ---
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+
+        function playTone(freq, type, duration, vol=0.1) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+
+        const sounds = {
+            click: () => playTone(600, 'sine', 0.1, 0.05),
+            hover: () => playTone(800, 'triangle', 0.05, 0.01),
+            select: () => playTone(440, 'sine', 0.1, 0.05),
+            correct: () => {
+                playTone(523.25, 'sine', 0.1, 0.1);
+                setTimeout(() => playTone(659.25, 'sine', 0.1, 0.1), 100);
+                setTimeout(() => playTone(783.99, 'sine', 0.2, 0.1), 200);
+            },
+            wrong: () => {
+                playTone(200, 'sawtooth', 0.2, 0.1);
+                setTimeout(() => playTone(150, 'sawtooth', 0.3, 0.1), 150);
+            },
+            win: () => {
+                [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
+                    setTimeout(() => playTone(f, 'square', 0.3, 0.05), i * 150);
+                });
+            }
+        };
+
+
+        // --- MANAJEMEN LAYAR ---
+        const screens = [
+            'screen-start', 'screen-stage1', 'screen-stage2',
+            'screen-stage3', 'screen-stage4', 'screen-stage5', 'screen-result'
+        ];
+       
+        function showScreen(id) {
+            stopSpeak(); // Berhentikan suara pembaca soal saat pindah layar
+           
+            screens.forEach(s => {
+                const el = document.getElementById(s);
+                if (s === id) {
+                    el.classList.remove('hidden', 'card-exit');
+                    el.classList.add('card-enter');
+                } else if (!el.classList.contains('hidden')) {
+                    el.classList.add('card-exit');
+                    setTimeout(() => el.classList.add('hidden'), 500);
+                }
+            });
+        }
+
+
+        function setHeader(title, colorClass) {
+            const h = document.getElementById('header-ui');
+            h.classList.remove('hidden');
+            document.getElementById('stage-title').innerText = title;
+            // simple color update
+            const ind = document.getElementById('stage-indicator');
+            ind.className = `text-white px-3 py-1 rounded-full text-sm ${colorClass}`;
+        }
+
+
+        function startGame() {
+            initAudio();
+            sounds.click();
+            setTimeout(() => {
+                initStage1();
+                showScreen('screen-stage1');
+                setHeader('Dekomposisi', 'bg-yellow-500');
+            }, 300);
+        }
+
+
+        // --- Logika Tahap 1 (Dekomposisi)... ---
+        const decompTasks = [
+            { id: 'd1', text: 'Memilah Baju', correct: true },
+            { id: 'd2', text: 'Menonton TV', correct: false },
+            { id: 'd3', text: 'Menjemur', correct: true },
+            { id: 'd4', text: 'Memasak Nasi', correct: false },
+            { id: 'd5', text: 'Melipat & Setrika', correct: true },
+            { id: 'd6', text: 'Menyiapkan Mesin Cuci', correct: true },
+            { id: 'd7', text: 'Menyapu Lantai', correct: false }
+        ].sort(() => Math.random() - 0.5);
+
+
+        let decompSelected = new Set();
+
+
+        function initStage1() {
+            const container = document.getElementById('decomp-container');
+            container.innerHTML = '';
+            decompTasks.forEach(task => {
+                const btn = document.createElement('div');
+                btn.className = 'chip bg-white text-gray-700 border-2 border-gray-200 font-bold py-2 px-4 rounded-full shadow-sm text-sm md:text-base';
+                btn.innerText = task.text;
+                btn.onclick = () => {
+                    sounds.select();
+                    if(decompSelected.has(task.id)) {
+                        decompSelected.delete(task.id);
+                        btn.classList.remove('selected');
+                    } else {
+                        decompSelected.add(task.id);
+                        btn.classList.add('selected');
+                    }
+                    // Enable button if 4 selected
+                    const checkBtn = document.getElementById('btn-check-1');
+                    if(decompSelected.size === 4) {
+                        checkBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        checkBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
+                };
+                container.appendChild(btn);
+            });
+        }
+
+
+        function checkDecomp() {
+            if(decompSelected.size !== 4) return;
+            let isWin = true;
+            decompSelected.forEach(id => {
+                if (!decompTasks.find(t => t.id === id).correct) isWin = false;
+            });
+
+
+            if (isWin) {
+                sounds.correct();
+                document.getElementById('btn-check-1').innerText = "Berhasil! Lanjut...";
+                document.getElementById('btn-check-1').classList.replace('bg-green-500', 'bg-blue-600');
+                setTimeout(() => {
+                    initStage2();
+                    showScreen('screen-stage2');
+                    setHeader('Pengenalan Pola', 'bg-pink-500');
+                }, 1500);
+            } else {
+                sounds.wrong();
+                const container = document.getElementById('screen-stage1');
+                container.classList.remove('shake');
+                void container.offsetWidth; // trigger reflow
+                container.classList.add('shake');
+            }
+        }
+
+
+        // --- Logika Tahap 2 (Pengenalan Pola - Custom Drag & Drop)... ---
+        const clothes = [
+            { id: 'c1', type: 'white', color: '#ffffff' },
+            { id: 'c2', type: 'color', color: '#ef4444' }, // red
+            { id: 'c3', type: 'white', color: '#f8fafc' },
+            { id: 'c4', type: 'color', color: '#3b82f6' }, // blue
+            { id: 'c5', type: 'color', color: '#10b981' }  // green
+        ];
+        let sortedCount = 0;
+        let counts = { white: 0, color: 0 };
+
+
+        function initStage2() {
+            const area = document.getElementById('clothes-area');
+            area.innerHTML = '';
+            sortedCount = 0; counts = { white: 0, color: 0 };
+            document.getElementById('count-white').innerText = '(0)';
+            document.getElementById('count-color').innerText = '(0)';
+
+
+            clothes.forEach((item, index) => {
+                const el = document.createElement('div');
+                el.className = 'draggable-item absolute';
+                // Posisi awal sebar acak di area
+                el.style.left = `${10 + (index * 15)}%`;
+                el.style.top = `${20 + (Math.random() * 20)}%`;
+               
+                el.innerHTML = `<svg width="40" height="40" viewBox="0 0 24 24" fill="${item.color}" stroke="#333" stroke-width="1.5" class="drop-shadow-md"><path d="M20.38 3.46L16 2 8 2 3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>`;
+               
+                area.appendChild(el);
+                setupCustomDrag(el, item.type === 'white' ? 'basket-white' : 'basket-color', item.type);
+            });
+        }
+
+
+        function setupCustomDrag(el, expectedTargetId, type) {
+            let startX, startY, currentX = 0, currentY = 0;
+           
+            const onStart = (e) => {
+                e.preventDefault(); // cegah scroll layar di mobile
+                sounds.hover();
+                startX = e.clientX || e.touches[0].clientX;
+                startY = e.clientY || e.touches[0].clientY;
+                el.style.zIndex = 50;
+                el.style.transform = `translate(${currentX}px, ${currentY}px) scale(1.2)`;
+               
+                document.addEventListener('mousemove', onMove, {passive: false});
+                document.addEventListener('touchmove', onMove, {passive: false});
+                document.addEventListener('mouseup', onEnd);
+                document.addEventListener('touchend', onEnd);
+            };
+
+
+            const onMove = (e) => {
+                e.preventDefault();
+                let clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                let clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                if(!clientX) return;
+               
+                let dx = clientX - startX;
+                let dy = clientY - startY;
+                el.style.transform = `translate(${currentX + dx}px, ${currentY + dy}px) scale(1.2)`;
+            };
+
+
+            const onEnd = (e) => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchend', onEnd);
+               
+                // Ambil posisi akhir transform
+                let computed = window.getComputedStyle(el);
+                let matrix = new DOMMatrixReadOnly(computed.transform);
+                currentX = matrix.m41;
+                currentY = matrix.m42;
+                el.style.transform = `translate(${currentX}px, ${currentY}px) scale(1)`;
+                el.style.zIndex = 20;
+
+
+                // Cek Drop Target
+                let rect = el.getBoundingClientRect();
+                let centerX = rect.left + rect.width/2;
+                let centerY = rect.top + rect.height/2;
+
+
+                let targets = document.querySelectorAll('.drop-basket');
+                let dropped = false;
+
+
+                targets.forEach(target => {
+                    let trect = target.getBoundingClientRect();
+                    // Deteksi tabrakan simpel
+                    if (centerX > trect.left && centerX < trect.right && centerY > trect.top && centerY < trect.bottom) {
+                        if (target.id === expectedTargetId) {
+                            dropped = true;
+                            el.style.display = 'none';
+                            sounds.correct();
+                            counts[type]++;
+                            document.getElementById(`count-${type}`).innerText = `(${counts[type]})`;
+                           
+                            // Animasi pop keranjang
+                            target.classList.add('hovered');
+                            setTimeout(() => target.classList.remove('hovered'), 200);
+
+
+                            sortedCount++;
+                            if(sortedCount === clothes.length) {
+                                setTimeout(() => {
+                                    sounds.win();
+                                    initStage3();
+                                    showScreen('screen-stage3');
+                                    setHeader('Abstraksi', 'bg-purple-500');
+                                }, 1000);
+                            }
+                        } else {
+                            sounds.wrong();
+                            // Kembali ke posisi awal sebelum drag
+                            currentX = 0; currentY = 0;
+                            el.style.transform = `translate(0px, 0px) scale(1)`;
+                        }
+                    }
+                });
+               
+                if(!dropped && currentX !== 0) {
+                     // Animasi kembali halus
+                     el.style.transition = 'transform 0.3s ease';
+                     currentX = 0; currentY = 0;
+                     el.style.transform = `translate(0px, 0px) scale(1)`;
+                     setTimeout(() => el.style.transition = 'transform 0.1s', 300);
+                }
+            };
+
+
+            el.addEventListener('mousedown', onStart);
+            el.addEventListener('touchstart', onStart, {passive: false});
+        }
+
+
+        // --- Logika Tahap 3 (Abstraksi)... ---
+        const abstractItems = [
+            { text: "Takaran Deterjen", isImportant: true },
+            { text: "Lagu yang diputar di HP", isImportant: false },
+            { text: "Warna Baju (Putih/Luntur)", isImportant: true },
+            { text: "Merek Mesin Cuci Tetangga", isImportant: false }
+        ];
+        let abstractState = {};
+
+
+        function initStage3() {
+            const container = document.getElementById('abstract-container');
+            container.innerHTML = '';
+            abstractState = {};
+
+
+            abstractItems.forEach((item, idx) => {
+                const row = document.createElement('div');
+                row.className = 'flex flex-col md:flex-row justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-gray-100 gap-3';
+               
+                const text = document.createElement('span');
+                text.className = 'font-bold text-gray-700 w-full md:w-1/2 text-center md:text-left';
+                text.innerText = item.text;
+
+
+                const btnGroup = document.createElement('div');
+                btnGroup.className = 'flex gap-2 w-full md:w-auto justify-center';
+
+
+                const btnPenting = document.createElement('button');
+                btnPenting.className = 'flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm bg-gray-100 text-gray-500 transition-colors';
+                btnPenting.innerText = 'Penting';
+               
+                const btnAbaikan = document.createElement('button');
+                btnAbaikan.className = 'flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm bg-gray-100 text-gray-500 transition-colors';
+                btnAbaikan.innerText = 'Abaikan';
+
+
+                btnPenting.onclick = () => {
+                    sounds.select();
+                    abstractState[idx] = true;
+                    btnPenting.className = 'flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm bg-purple-500 text-white shadow-md';
+                    btnAbaikan.className = 'flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm bg-gray-100 text-gray-500';
+                };
+
+
+                btnAbaikan.onclick = () => {
+                    sounds.select();
+                    abstractState[idx] = false;
+                    btnAbaikan.className = 'flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm bg-gray-400 text-white shadow-md';
+                    btnPenting.className = 'flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-sm bg-gray-100 text-gray-500';
+                };
+
+
+                btnGroup.appendChild(btnPenting);
+                btnGroup.appendChild(btnAbaikan);
+                row.appendChild(text);
+                row.appendChild(btnGroup);
+                container.appendChild(row);
+            });
+        }
+
+
+        function checkAbstraction() {
+            if(Object.keys(abstractState).length < abstractItems.length) {
+                // Belum diisi semua
+                const container = document.getElementById('screen-stage3');
+                container.classList.remove('shake');
+                void container.offsetWidth;
+                container.classList.add('shake');
+                sounds.wrong();
+                return;
+            }
+
+
+            let isWin = true;
+            abstractItems.forEach((item, idx) => {
+                if (abstractState[idx] !== item.isImportant) isWin = false;
+            });
+
+
+            if (isWin) {
+                sounds.correct();
+                setTimeout(() => {
+                    initStage4();
+                    showScreen('screen-stage4');
+                    setHeader('Algoritma', 'bg-emerald-500');
+                }, 1000);
+            } else {
+                sounds.wrong();
+                const container = document.getElementById('screen-stage3');
+                container.classList.remove('shake');
+                void container.offsetWidth;
+                container.classList.add('shake');
+            }
+        }
+
+
+        // --- Logika Tahap 4 (Algoritma - Click to Sort)... ---
+        // Algoritma: 1. Pilah, 2. Masukkan & Sabun, 3. Putar Mesin, 4. Jemur
+        const algoSteps = [
+            { id: 'a1', text: 'Pilah baju sesuai warna', order: 1 },
+            { id: 'a2', text: 'Masukkan baju & deterjen', order: 2 },
+            { id: 'a3', text: 'Nyalakan mesin cuci', order: 3 },
+            { id: 'a4', text: 'Jemur pakaian', order: 4 }
+        ];
+       
+        let poolItems = [];
+        let seqItems = [];
+
+
+        function initStage4() {
+            // Acak urutan awal di pool
+            poolItems = [...algoSteps].sort(() => Math.random() - 0.5);
+            seqItems = [];
+            renderAlgo();
+        }
+
+
+        function renderAlgo() {
+            const pool = document.getElementById('algo-pool');
+            const seq = document.getElementById('algo-sequence');
+            pool.innerHTML = ''; seq.innerHTML = '';
+
+
+            poolItems.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'algo-item bg-white p-3 rounded-lg border-2 border-gray-200 shadow-sm font-bold text-gray-700 text-sm';
+                el.innerText = item.text;
+                el.onclick = () => {
+                    sounds.select();
+                    poolItems = poolItems.filter(i => i.id !== item.id);
+                    seqItems.push(item);
+                    renderAlgo();
+                };
+                pool.appendChild(el);
+            });
+
+
+            seqItems.forEach((item, idx) => {
+                const el = document.createElement('div');
+                el.className = 'algo-item bg-emerald-100 p-3 rounded-lg border-2 border-emerald-300 shadow-sm font-bold text-emerald-800 text-sm flex gap-2';
+                el.innerHTML = `<span class="bg-emerald-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0">${idx + 1}</span> ${item.text}`;
+                el.onclick = () => {
+                    sounds.select();
+                    seqItems = seqItems.filter(i => i.id !== item.id);
+                    poolItems.push(item);
+                    renderAlgo();
+                };
+                seq.appendChild(el);
+            });
+
+
+            // Tampilkan slot kosong pembantu di seq
+            for(let i = seqItems.length; i < 4; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'algo-slot rounded-lg flex items-center justify-center text-gray-300 text-sm';
+                slot.innerText = 'Klik blok di atas';
+                seq.appendChild(slot);
+            }
+        }
+
+
+        function checkAlgorithm() {
+            if(seqItems.length < 4) {
+                sounds.wrong();
+                return;
+            }
+           
+            let isWin = true;
+            seqItems.forEach((item, idx) => {
+                if (item.order !== idx + 1) isWin = false;
+            });
+
+
+            if (isWin) {
+                sounds.win();
+                setTimeout(() => {
+                    initQuiz();
+                    showScreen('screen-stage5');
+                    setHeader('Evaluasi', 'bg-orange-500');
+                }, 1000);
+            } else {
+                sounds.wrong();
+                const container = document.getElementById('screen-stage4');
+                container.classList.remove('shake');
+                void container.offsetWidth;
+                container.classList.add('shake');
+            }
+        }
+
+
+        // --- Logika Tahap 5 (Kuis Akhir)... ---
+        const quizQuestions = [
+            {
+                q: "Saat memisahkan baju putih dan berwarna luntur, pilar CT apa yang kamu gunakan?",
+                opts: ["Dekomposisi", "Pengenalan Pola", "Abstraksi", "Algoritma"],
+                ans: 1
+            },
+            {
+                q: "Mengabaikan merek sabun dan fokus pada fungsinya membersihkan noda disebut proses...",
+                opts: ["Abstraksi", "Dekomposisi", "Algoritma", "Pengenalan Pola"],
+                ans: 0
+            }
+        ];
+        let currentQ = 0;
+
+
+        function initQuiz() {
+            currentQ = 0;
+            loadQuiz();
+        }
+
+
+        function loadQuiz() {
+            const data = quizQuestions[currentQ];
+            document.getElementById('quiz-question').innerText = data.q;
+            document.getElementById('quiz-counter').innerText = `${currentQ + 1}/${quizQuestions.length}`;
+           
+            // Konfigurasi TTS untuk membacakan soal dan opsi
+            const speakerBtn = document.getElementById('btn-speak-quiz');
+            speakerBtn.onclick = () => {
+                const textToRead = data.q + ". Pilihan jawabannya adalah: " + data.opts.join(', ');
+                speakText(textToRead);
+            };
+           
+            const optsContainer = document.getElementById('quiz-options');
+            optsContainer.innerHTML = '';
+
+
+            data.opts.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-3d bg-white text-gray-700 border-2 border-orange-200 font-bold py-4 px-6 rounded-2xl text-sm md:text-base w-full hover:bg-orange-50';
+                btn.innerText = opt;
+                btn.onclick = () => {
+                    stopSpeak(); // Berhentikan suara ketika anak sudah menjawab
+                    if (idx === data.ans) {
+                        sounds.correct();
+                        btn.classList.replace('bg-white', 'bg-green-500');
+                        btn.classList.replace('text-gray-700', 'text-white');
+                        setTimeout(() => {
+                            currentQ++;
+                            if (currentQ < quizQuestions.length) loadQuiz();
+                            else finishGame();
+                        }, 800);
+                    } else {
+                        sounds.wrong();
+                        btn.classList.replace('bg-white', 'bg-red-500');
+                        btn.classList.replace('text-gray-700', 'text-white');
+                        setTimeout(() => {
+                            btn.classList.replace('bg-red-500', 'bg-white');
+                            btn.classList.replace('text-white', 'text-gray-700');
+                        }, 500);
+                    }
+                };
+                optsContainer.appendChild(btn);
+            });
+        }
+
+
+        function finishGame() {
+            sounds.win();
+            document.getElementById('header-ui').classList.add('hidden');
+            showScreen('screen-result');
+        }
+
+
+        // Generate background bubbles on load
+        function createBubbles() {
+            const container = document.getElementById('bubble-container');
+            for(let i=0; i<20; i++) {
+                const b = document.createElement('div');
+                b.className = 'bubble';
+                const size = Math.random() * 40 + 10;
+                b.style.width = size + 'px';
+                b.style.height = size + 'px';
+                b.style.left = Math.random() * 100 + 'vw';
+                b.style.animationDuration = (Math.random() * 5 + 5) + 's';
+                b.style.animationDelay = (Math.random() * 5) + 's';
+                container.appendChild(b);
+            }
+        }
+        createBubbles();
+    </script>
+</body>
+</html>
